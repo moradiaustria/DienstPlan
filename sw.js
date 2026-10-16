@@ -1,5 +1,5 @@
-const CACHE="dienstplan-v4";
-const SHELL=["./dienstplan.html","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
+const CACHE="dienstplan-v5";
+const SHELL=["./","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
 self.addEventListener("install",e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)));
   self.skipWaiting();
@@ -18,6 +18,6 @@ self.addEventListener("fetch",e=>{
       const copy=res.clone();
       caches.open(CACHE).then(c=>c.put(req,copy));
       return res;
-    }).catch(()=>caches.match(req).then(r=>r||caches.match("./dienstplan.html")))
+    }).catch(()=>caches.match(req).then(r=>r||caches.match("./")))
   );
 });
