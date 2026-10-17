@@ -1,1547 +1,362 @@
-<!DOCTYPE html>
-<html lang="de">
+<!doctype html>
+<html lang="en" dir="ltr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#0f5c66">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Dienstplan">
-<link rel="apple-touch-icon" href="icon-192.png">
-<link rel="icon" href="icon-192.png">
-<title>Dienstplan</title>
-<style>
-  :root{
-    --ink:#1c232c;
-    --sub:#5c6b78;
-    --line:#d7dee4;
-    --paper:#ffffff;
-    --bg:#eef1f5;
-    --sat:#a9d3e8;
-    --sun:#f2a6ad;
-    --holiday:#fbe8d6;
-    --accent:#0f5c66;
-    --accent-dark:#0a444c;
-    --warn:#c0562f;
-    --ok:#3f7d44;
-  }
-  *{box-sizing:border-box;}
-  body{
-    font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-    color:var(--ink);
-    margin:0;
-    padding:20px;
-    background:var(--bg);
-  }
-  h1,h2,h3{font-family:inherit;}
-  .wrap{max-width:1180px;margin:0 auto;}
-
-  .card{
-    background:var(--paper);
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:16px 20px;
-    margin-bottom:14px;
-    box-shadow:0 1px 2px rgba(20,30,40,.04);
-  }
-  .card h1{font-size:17px;margin:0 0 12px 0;color:var(--accent-dark);letter-spacing:-.01em;}
-  .card h2{font-size:15px;margin:0 0 4px 0;color:var(--accent-dark);}
-
-  .row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;}
-  .field label{
-    display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;
-    color:var(--sub);margin-bottom:4px;font-weight:600;
-  }
-  select.big, input.big{
-    padding:6px 9px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:#fff;
-  }
-  select.big:focus, input.big:focus{outline:2px solid var(--accent);outline-offset:1px;}
-
-  button{
-    background:var(--accent);color:#fff;border:none;padding:8px 15px;border-radius:6px;
-    font-size:13px;cursor:pointer;font-weight:500;transition:filter .15s;
-  }
-  button:hover{filter:brightness(1.08);}
-  button:focus-visible{outline:2px solid var(--accent-dark);outline-offset:2px;}
-  button.secondary{background:#69737d;}
-  button.warn{background:var(--warn);}
-  button.ok{background:var(--ok);}
-  button.small{padding:3px 9px;font-size:11px;}
-  button.ghost{background:transparent;color:var(--accent-dark);border:1px solid var(--line);}
-
-  .status{font-size:11px;color:var(--sub);margin-top:8px;}
-  .status.bad{color:var(--warn);}
-  .hint{font-size:11.5px;color:var(--sub);margin-top:8px;line-height:1.5;}
-
-  .employees{
-    display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:7px;margin-top:8px;
-  }
-  .emp-item{
-    display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:6px;padding:4px 7px;background:#fbfcfd;
-  }
-  .emp-item input[type=text]{border:none;font-size:12.5px;width:100%;outline:none;background:transparent;}
-  .emp-item input[type=color]{width:20px;height:20px;border:none;padding:0;background:none;flex:0 0 auto;border-radius:4px;}
-
-  .vac-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;}
-  .vac-row select, .vac-row input[type=date]{
-    padding:5px 7px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;
-  }
-  .vac-row .rm{background:var(--warn);padding:3px 9px;font-size:11px;}
-
-  /* --- Sheet / print area --- */
-  .sheet-wrap{padding:16px 20px 20px 20px;}
-  .sheet-title{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:6px;}
-  .sheet-title h2{margin:0;font-size:18px;color:var(--accent-dark);}
-  .sheet-title span{font-size:11px;color:var(--sub);}
-  table{width:100%;border-collapse:collapse;table-layout:fixed;}
-  th,td{border:1px solid var(--line);padding:3px 4px;font-size:10px;text-align:center;vertical-align:middle;}
-  th{background:#f2f5f7;font-size:9.5px;text-transform:uppercase;letter-spacing:.02em;color:var(--sub);font-weight:700;}
-  col.date{width:8.3%;} col.day{width:4.2%;} col.hol{width:7.8%;}
-  col.time{width:5.9%;} col.slot{width:8.2%;} col.slot2{width:13%;}
-  col.vac{width:7.8%;} col.ruf{width:8.2%;}
-  tr.saturday td{background:var(--sat);}
-  tr.sunday td{background:var(--sun);}
-  tr.holiday td{background:var(--holiday);}
-  tr.today td{border-top:2px solid var(--accent-dark);border-bottom:2px solid var(--accent-dark);}
-  tr.today td:first-child{border-left:2px solid var(--accent-dark);}
-  tr.today td:last-child{border-right:2px solid var(--accent-dark);}
-  td.holname{font-size:8.5px;font-weight:600;color:#8a4a1f;}
-  td.vaccell{font-size:8px;font-weight:600;text-align:left;line-height:1.25;}
-  td.vaccell .vac-dot{width:6px;height:6px;margin-right:3px;}
-  td.vaccell .vac-name{display:inline-block;margin-right:3px;}
-  td.rufcell select{width:100%;border:1px solid #d7dde2;border-radius:4px;font-size:9.5px;padding:2px 1px;}
-  td.rufcell-disabled{color:#c3c9ce;font-size:9px;background:repeating-linear-gradient(45deg,rgba(0,0,0,.02),rgba(0,0,0,.02) 4px,transparent 4px,transparent 8px);}
-  .timecell input{width:100%;border:1px solid #d7dde2;border-radius:4px;font-size:9.5px;padding:2px 2px;text-align:center;}
-  .slotcell select{width:100%;border:1px solid #d7dde2;border-radius:4px;font-size:9.5px;padding:2px 1px;transition:all .12s;}
-  .slotcell select.empty{opacity:.55;width:60%;margin:0 auto;display:block;}
-  .timecell input.empty{opacity:.55;width:70%;margin:0 auto;}
-  .ma2-wrap{display:flex;flex-wrap:nowrap;align-items:center;gap:2px;white-space:nowrap;}
-  .ma2-wrap select{flex:1 1 auto;min-width:0;transition:flex .12s;}
-  .ma2-wrap select.empty{flex:0 1 32%;opacity:.55;}
-  .ma2-time-label{flex:0 0 auto;font-size:8px;font-weight:700;color:var(--accent-dark);white-space:nowrap;}
-  .ma2time-btn{flex:0 0 auto;border:1px solid #d7dde2;background:#fff;border-radius:4px;font-size:8.5px;line-height:1;padding:2px 3px;cursor:pointer;}
-  .ma2time-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);padding:2px 3px;font-size:8px;min-width:14px;}
-
-  /* --- MA2 time popup --- */
-  .ma2modal-overlay{display:none;position:fixed;inset:0;background:rgba(20,30,40,.45);z-index:200;align-items:center;justify-content:center;}
-  .ma2modal-overlay.open{display:flex;}
-  .ma2modal{background:#fff;border-radius:10px;padding:16px 18px;width:290px;max-width:92vw;max-height:85vh;overflow-y:auto;box-shadow:0 6px 24px rgba(0,0,0,.2);}
-  .ma2modal h3{margin:0 0 10px 0;font-size:14px;color:var(--accent-dark);}
-  .ma2modal h4{margin:12px 0 6px 0;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--sub);}
-  .ma2modal .opt-list{display:flex;flex-wrap:wrap;gap:5px;}
-  .ma2modal .opt-btn{background:#f2f5f7;color:var(--ink);border:1px solid var(--line);padding:5px 8px;border-radius:6px;font-size:12px;font-weight:500;display:flex;align-items:center;gap:5px;}
-  .ma2modal .opt-btn:hover{background:#e6ecef;filter:none;}
-  .ma2modal .opt-btn .rm-x{color:var(--warn);font-weight:700;padding:0 0 0 4px;}
-  .ma2modal .manual-row{display:flex;gap:6px;margin-top:6px;}
-  .ma2modal .manual-row input{flex:1;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;min-width:0;}
-  .ma2modal .default-btn{background:transparent;color:var(--accent-dark);border:1px solid var(--line);width:100%;margin-top:12px;}
-  .ma2modal .close-row{display:flex;justify-content:flex-end;margin-top:14px;}
-  .ma2modal .close-row button{background:#69737d;}
-
-  .legend{margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;font-size:10px;}
-  .legend span.sw{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:middle;border:1px solid rgba(0,0,0,.15);}
-
-  .vac-summary{margin-top:14px;}
-  .vac-summary h3{font-size:12px;color:var(--accent-dark);margin:0 0 6px 0;}
-  table.vac-table{width:100%;border-collapse:collapse;max-width:560px;}
-  table.vac-table td, table.vac-table th{border:1px solid var(--line);padding:3px 7px;font-size:10.5px;text-align:left;}
-  table.vac-table th{background:#f2f5f7;font-size:9.5px;text-transform:uppercase;color:var(--sub);}
-  .vac-dot{display:inline-block;width:8px;height:8px;border-radius:3px;margin-right:5px;vertical-align:middle;border:1px solid rgba(0,0,0,.15);}
-
-  .archive-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #eef1f4;font-size:12.5px;}
-  .archive-row span{flex:1;}
-  #compareResult table{max-width:none;margin-top:6px;}
-
-  /* --- Mobile / horizontal table scroll --- */
-  .table-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}
-  #planTable{min-width:900px;}
-  .scroll-hint{display:none;font-size:11px;color:var(--sub);margin-bottom:6px;}
-
-  @media (max-width:700px){
-    body{padding:10px;}
-    .card{padding:12px 14px;}
-    .card h1{font-size:15px;}
-    .row{gap:10px;}
-    select.big, input.big{font-size:13px;}
-    button{padding:8px 13px;font-size:12.5px;}
-    .employees{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
-    .sheet-wrap{padding:12px 10px 14px 10px;}
-    .sheet-title h2{font-size:16px;}
-    .scroll-hint{display:block;}
-    table.vac-table{font-size:10px;}
-    .ma2modal{padding:14px;}
-  }
-
-  @media print{
-    *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important;}
-    body{background:#fff;padding:0;margin:0;}
-    .no-print{display:none !important;}
-    .sheet-wrap{border:none;padding:0;box-shadow:none;}
-    @page{size:A4 landscape;margin:7mm;}
-    table{page-break-inside:avoid;}
-    th,td{font-size:7.6pt;padding:1px 2px;line-height:1.1;}
-    .sheet-title{margin-bottom:4px;}
-    .sheet-title h2{font-size:13pt;}
-    .sheet-title span{display:none;}
-    .legend{display:none;}
-    .ma2time-btn{display:none;}
-    .ma2-wrap select{width:100%;}
-    #vacSummary, #hoursSummary{page-break-before:always;}
-  }
-
-  /* ===== Ansichtsmodus (Standard): nur die Haupttabelle, mobil optimiert ===== */
-  .view-bar{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
-  .view-bar h2{flex:1;margin:0;font-size:16px;text-align:center;color:var(--accent-dark);}
-  .view-bar button.nav{background:transparent;color:var(--accent-dark);border:1px solid var(--line);padding:4px 11px;font-size:18px;line-height:1;}
-  .view-bar button.edit{padding:7px 10px;font-size:12.5px;white-space:nowrap;}
-  #viewTable{width:100%;border-collapse:collapse;table-layout:fixed;}
-  #viewTable th{position:sticky;top:0;z-index:2;font-size:11px;padding:5px 2px;}
-  #viewTable td{font-size:11px;padding:4px 3px;vertical-align:top;text-align:center;}
-  #viewTable td.v-date{vertical-align:middle;}
-  #viewTable td.v-date b{display:block;font-size:15px;line-height:1.1;}
-  #viewTable td.v-date small{font-size:10.5px;color:var(--sub);font-weight:600;}
-  .v-time{font-size:10.5px;color:var(--sub);font-weight:600;margin-bottom:1px;}
-  .v-none{color:#b5bdc4;}
-  .chip{display:block;border-radius:5px;padding:3px 2px;margin:2px 0;font-weight:600;font-size:11.5px;overflow-wrap:anywhere;line-height:1.2;}
-  .chip small{display:block;font-weight:500;font-size:9.5px;opacity:.9;}
-  #viewTable tr.v-info td{font-size:10px;text-align:left;padding:2px 6px 4px;border-top:none;}
-  #viewTable tr.v-info .v-hol{font-weight:700;color:#8a4a1f;margin-right:8px;}
-  #viewTable tr.v-info span.v-tag{display:inline-block;margin-right:8px;font-weight:600;}
-  #viewTable tr.v-info .chip{display:inline-block;padding:1px 6px;margin:0 0 0 3px;font-size:10px;}
-
-
-  #viewTable col.c1{width:15%;} #viewTable col.c2,#viewTable col.c3{width:42.5%;} #viewTable col.c4{width:0;}
-  #viewWrap{overflow-x:auto;}
-  /* Breite Ansicht: jeder Tag möglichst in einer Zeile */
-  #viewTable.wide{table-layout:auto;}
-  #viewTable.wide col.c1{width:9%;} #viewTable.wide col.c2,#viewTable.wide col.c3{width:31%;} #viewTable.wide col.c4{width:29%;}
-  #viewTable.wide th{font-size:11.5px;padding:6px 8px;}
-  #viewTable.wide td{white-space:nowrap;text-align:left;vertical-align:middle;padding:5px 8px;font-size:12.5px;}
-  #viewTable.wide td.v-date{font-size:13px;}
-  #viewTable.wide td.v-date b{display:inline;font-size:13px;}
-  #viewTable.wide .cellbox{display:flex;align-items:center;gap:6px;}
-  #viewTable.wide .v-time{margin:0;font-size:12px;}
-  #viewTable.wide .chip{display:inline-block;margin:0;padding:2px 9px;font-size:12.5px;}
-  #viewTable.wide .chip small{display:inline;margin-left:5px;font-size:10.5px;}
-  #viewTable.wide td.v-infocell{font-size:11.5px;}
-  #viewTable.wide .v-hol{font-weight:700;color:#8a4a1f;margin-right:10px;}
-  #viewTable.wide .v-tag{display:inline-block;margin-right:10px;font-weight:600;}
-  #viewTable.wide .v-tag .chip{padding:1px 7px;font-size:11px;margin-left:3px;}
-  body:not(.editing){padding:6px;}
-  body:not(.editing) .wrap>.card.no-print,
-  body:not(.editing) .sheet-title,
-  body:not(.editing) .scroll-hint,
-  body:not(.editing) .table-scroll,
-  body:not(.editing) .legend,
-  body:not(.editing) .vac-summary{display:none !important;}
-  body:not(.editing) .sheet-wrap{padding:8px 6px 10px;margin-bottom:0;}
-  body.editing .view-bar, body.editing #viewWrap{display:none !important;}
-  /* ===== Druck (Ansichtsmodus): Monatskalender ===== */
-  .print-cal{display:none;}
-  @media print{
-    .view-bar{display:none !important;}
-    body:not(.editing) #viewWrap,
-    body:not(.editing) .table-scroll,
-    body:not(.editing) .sheet-title,
-    body:not(.editing) .vac-summary,
-    body:not(.editing) #hoursSummary{display:none !important;}
-    body:not(.editing) .wrap, body:not(.editing) .card.sheet-wrap{padding:0 !important;margin:0 !important;border:none !important;box-shadow:none !important;}
-    html, body{height:auto !important;}
-    body:not(.editing) .print-cal{display:block;height:180mm;overflow:hidden;page-break-after:avoid;break-after:avoid;}
-    .print-cal h2{margin:0 0 4px;font-size:15pt;color:var(--accent-dark);text-align:center;}
-    .print-cal table{width:100%;border-collapse:collapse;table-layout:fixed;page-break-inside:avoid;}
-    .print-cal th{background:var(--accent-dark);color:#fff;font-size:9.5pt;padding:3px 0;border:1px solid #333;}
-    .print-cal td.pc-cell{text-align:center;border:1px solid #555;vertical-align:top;padding:2px 3px;height:calc(158mm / var(--weeks,5));font-size:7.5pt;line-height:1.25;overflow:hidden;}
-    .print-cal td.pc-empty{border:1px solid #bbb;background:#dfe5ea;}
-    .print-cal td.pc-cell{background:#f6fafc;}
-    .print-cal td.pc-cell.sat{background:#a9d3e8;}
-    .print-cal td.pc-cell.sun{background:#f2a6ad;}
-    .print-cal td.pc-cell.holiday{background:#f9cfa5;}
-    .print-cal .pc-head{display:block;margin-bottom:1px;white-space:nowrap;overflow:hidden;}
-    .print-cal .pc-head b{font-size:12pt;margin-right:3px;}
-    .print-cal .pc-hol{display:block;font-size:7pt;font-weight:700;color:#8a4a1f;}
-    .print-cal .pc-shift{margin:1px 0 2px;}
-    .print-cal .pc-lbl{display:block;font-size:6.3pt;font-weight:700;color:#444;}
-    .print-cal .pc-chip{display:block;width:84%;margin-left:auto !important;margin-right:auto !important;box-sizing:border-box;text-align:center;border-radius:4px;padding:1px 3px;margin:0 0 2px 0;font-weight:700;font-size:8pt;white-space:nowrap;overflow:hidden;}
-    .print-cal .pc-chip i{font-style:normal;font-weight:500;font-size:7pt;margin-right:4px;}
-    .print-cal .pc-foot{font-size:7.5pt;font-weight:600;color:#333;margin-top:1px;text-align:center;}
-    .print-cal .pc-legend{margin-top:3px;font-size:7pt;color:#444;}
-  }
-</style>
-</head>
   <script>if(!location.pathname.endsWith("/")&&!location.pathname.endsWith(".html"))location.replace(location.pathname+"/"+location.search+location.hash);</script>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#1a7f37">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Stadtrad Innsbruck Stations</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f6f8; --card: #fff; --text: #16181d; --muted: #6b7280; --line: #e3e5ea;
+      --add: #1a7f37; --add-bg: #e6f6ea; --remove: #c0352b; --remove-bg: #fdebea;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101215; --card: #1a1d22; --text: #eceef2; --muted: #9aa1ad; --line: #2a2e36;
+        --add: #56d364; --add-bg: #12301b; --remove: #ff7b72; --remove-bg: #3a1815;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+               max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    }
+    main { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 1.3rem; margin: 4px 0 2px; }
+    .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    #meta { color: var(--muted); font-size: .85rem; }
+    #refresh {
+      flex: none; font: inherit; font-weight: 600; font-size: .9rem; cursor: pointer;
+      padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line);
+      background: var(--card); color: var(--text);
+    }
+    #refresh:active { transform: scale(.97); }
+    #refresh:disabled { opacity: .6; cursor: default; }
+    ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+    li {
+      display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center;
+      background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+      border-left-width: 6px;
+    }
+    li.add { border-left-color: var(--add); }
+    li.remove { border-left-color: var(--remove); }
+    .name { font-weight: 600; overflow-wrap: anywhere; }
+    .count { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; line-height: 1; }
+    .count small { display: block; font-size: .65rem; font-weight: 500; color: var(--muted); margin-top: 2px; }
+    .action {
+      grid-column: 1 / -1; margin-top: 6px; padding: 6px 10px; border-radius: 8px;
+      font-size: .92rem; font-weight: 600;
+    }
+    li.add .action { background: var(--add-bg); color: var(--add); }
+    li.remove .action { background: var(--remove-bg); color: var(--remove); }
+    .claim { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; font-size: .88rem; }
+    .claim .who { color: var(--muted); }
+    li.claimed .who { color: var(--text); font-weight: 600; }
+    li.claimed { opacity: .92; }
+    .cbtn { font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+    .cbtn:disabled { opacity: .5; cursor: default; }
+    dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--text); padding: 18px; max-width: 320px; width: calc(100% - 40px); }
+    dialog::backdrop { background: rgba(0,0,0,.5); }
+    dialog p { margin: 0 0 14px; font-weight: 600; overflow-wrap: anywhere; }
+    dialog .row { display: flex; gap: 8px; justify-content: flex-end; }
+    .msg { text-align: center; color: var(--muted); padding: 24px 0; }
+  </style>
+</head>
 <body>
-<div class="wrap">
-
-<div class="card no-print">
-  <h1>Dienstplan – Einstellungen</h1>
-  <div class="row" style="align-items:center;">
-    <div class="field"><button id="editLockToggle" class="warn" onclick="toggleEditLock()">🔒 Bearbeitung freischalten</button></div>
-    <div class="status" id="editLockStatus" style="margin-top:0;">Ansicht ist schreibgeschützt – zum Bearbeiten entsperren.</div>
-  </div>
-  <div class="row" style="margin-top:10px;">
-    <div class="field">
-      <label>Monat</label>
-      <select id="monthSel" class="big" onchange="loadMonth()"></select>
+  <main>
+    <h1>Stadtrad Innsbruck Stations</h1>
+    <div class="bar">
+      <div id="meta">Loading live data…</div>
+      <div style="display:flex;gap:8px;flex:none"><button id="notify" class="cbtn" type="button" hidden>🔔</button><button id="refresh" type="button">Refresh</button></div>
     </div>
-    <div class="field">
-      <label>Jahr</label>
-      <input type="number" id="yearInp" class="big" style="width:90px" value="2026" min="2020" max="2035" onchange="loadMonth()">
+    <ul id="stations" aria-live="polite"></ul>
+  </main>
+
+  <dialog id="dlg">
+    <p id="dlgText"></p>
+    <div class="row">
+      <button class="cbtn" id="dlgNo" type="button">No</button>
+      <button class="cbtn" id="dlgYes" type="button">Yes</button>
     </div>
-    <div class="field"><button onclick="loadMonth()">Anzeigen</button></div>
-    <div class="field"><button class="ok" onclick="exportExcel()">📊 Als Excel exportieren</button></div>
-    <div class="field"><button class="secondary" onclick="window.print()">🖨️ Drucken / PDF</button></div>
-    <div class="field"><button id="addEmployeeBtn" class="secondary" onclick="addEmployee()">+ Mitarbeiter</button></div>
-  </div>
+  </dialog>
 
-  <div class="field" style="margin-top:14px;">
-    <label>Mitarbeiter (Name &amp; Farbe – wird für Dropdowns verwendet)</label>
-    <div class="employees" id="employeeList"></div>
-  </div>
-  <div class="hint">Änderungen an Namen/Farben wirken sich sofort auf alle Monate aus. Die Feiertage Österreichs sind automatisch hinterlegt.</div>
+  <script>
+    const infoUrl = 'https://gbfs.nextbike.net/maps/gbfs/v2/nextbike_si/de/station_information.json';
+    const statusUrl = 'https://gbfs.nextbike.net/maps/gbfs/v2/nextbike_si/de/station_status.json';
+    const list = document.getElementById('stations');
+    const meta = document.getElementById('meta');
 
-  <div class="field" style="margin-top:14px;">
-    <label>Urlaub / Abwesenheiten</label>
-    <div id="vacationList"></div>
-    <button id="addVacationBtn" class="secondary" style="margin-top:6px;" onclick="addVacation()">+ Urlaubseintrag</button>
-  </div>
-
-  <div class="field" style="margin-top:14px;">
-    <label>Rufbereitschaft</label>
-    <div id="rufList"></div>
-    <button id="addRufBtn" class="secondary" style="margin-top:6px;" onclick="addRuf()">+ Rufbereitschaft-Eintrag</button>
-  </div>
-
-
-  <div class="row" style="margin-top:14px;">
-    <div class="field"><button class="ghost" onclick="exportBackup()">⬇️ Datensicherung exportieren (.json)</button></div>
-    <div class="field">
-      <button id="importBackupBtn" class="ghost" onclick="document.getElementById('importFile').click()">⬆️ Datensicherung importieren</button>
-      <input type="file" id="importFile" accept=".json" style="display:none" onchange="if(this.files[0]) importBackupFile(this.files[0])">
-    </div>
-  </div>
-  <div class="status" id="saveStatus">–</div>
-
-  <div class="field" style="margin-top:14px;">
-    <div class="row" style="align-items:flex-end;">
-      <div class="field"><button id="saveToRemoteBtn" class="ok" onclick="saveToRemote()">☁️ Auf Server speichern</button></div>
-    </div>
-    <div class="status" id="remoteSaveStatus">–</div>
-  </div>
-</div>
-
-<div class="card sheet-wrap">
-  <div class="view-bar no-print">
-    <button class="nav" onclick="shiftMonth(-1)" aria-label="Vorheriger Monat">‹</button>
-    <h2 id="viewHeading">Dienstplan</h2>
-    <button class="nav" onclick="shiftMonth(1)" aria-label="Nächster Monat">›</button>
-    <button class="edit" onclick="toggleEditLock()">✏️ Bearbeiten</button>
-  </div>
-  <div id="printCal" class="print-cal"></div>
-  <div id="viewWrap" class="no-print">
-    <table id="viewTable">
-      <colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup>
-      <thead id="viewHead"></thead>
-      <tbody id="viewBody"></tbody>
-    </table>
-  </div>
-  <div class="sheet-title">
-    <h2 id="sheetHeading">Dienstplan</h2>
-    <span>Erstellt mit Dienstplan-Generator</span>
-  </div>
-  <div class="scroll-hint no-print">← Zum Anzeigen weiterer Spalten die Tabelle nach links/rechts wischen →</div>
-  <div class="table-scroll">
-  <table id="planTable">
-    <colgroup>
-      <col class="date"><col class="day"><col class="hol">
-      <col class="time"><col class="slot"><col class="slot2">
-      <col class="time"><col class="slot"><col class="slot2">
-      <col class="vac"><col class="ruf">
-    </colgroup>
-    <thead>
-      <tr>
-        <th>Datum</th><th>Tag</th><th>Feiertag</th>
-        <th>Dienst 1 – Zeit</th><th>Dienst 1 – MA</th><th>Dienst 1 – MA 2</th>
-        <th>Dienst 2 – Zeit</th><th>Dienst 2 – MA</th><th>Dienst 2 – MA 2</th>
-        <th>Urlaub</th><th>Rufbereitschaft</th>
-      </tr>
-    </thead>
-    <tbody id="planBody"></tbody>
-  </table>
-  </div>
-  <div class="legend" id="legend"></div>
-
-  <div class="vac-summary" id="vacSummary">
-    <h3>Urlaub / Abwesenheiten in diesem Monat</h3>
-    <table class="vac-table" id="vacTable">
-      <thead><tr><th>Mitarbeiter</th><th>Von</th><th>Bis</th></tr></thead>
-      <tbody id="vacTableBody"></tbody>
-    </table>
-  </div>
-
-  <div class="vac-summary" id="rufSummary">
-    <h3>Rufbereitschaft in diesem Monat</h3>
-    <table class="vac-table" id="rufTable">
-      <thead><tr><th>Mitarbeiter</th><th>Von</th><th>Bis</th></tr></thead>
-      <tbody id="rufTableBody"></tbody>
-    </table>
-  </div>
-
-  <div class="vac-summary" id="hoursSummary">
-    <h3>Arbeitsstunden im Monat</h3>
-    <table class="vac-table" id="hoursTable">
-      <thead><tr><th>Mitarbeiter</th><th>Stunden/Monat</th><th>Ø Stunden/Woche</th></tr></thead>
-      <tbody id="hoursTableBody"></tbody>
-    </table>
-  </div>
-</div>
-
-<div class="card no-print" id="archiveCard">
-  <h2>Archiv &amp; Monatsvergleich</h2>
-  <div class="hint" style="margin-top:0;">Jeder angezeigte Monat wird automatisch im Browser gespeichert. Hier findest du alle bisherigen Monate wieder und kannst mehrere für einen Vergleich auswählen.</div>
-  <div id="archiveList" style="margin-top:10px;"></div>
-  <div class="row" style="margin-top:10px;">
-    <button class="secondary" onclick="compareSelected()">Ausgewählte vergleichen</button>
-  </div>
-  <div id="compareResult" style="margin-top:10px;"></div>
-</div>
-
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-<script>
-const MONTH_NAMES=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-const DAY_NAMES=["So","Mo","Di","Mi","Do","Fr","Sa"];
-const STORAGE_KEY="dienstplan_archiv_v1";
-
-let employees=[
-  {name:"Mitarbeiter 1", color:"#2d5f6e"},
-  {name:"Mitarbeiter 2", color:"#c0562f"},
-  {name:"Mitarbeiter 3", color:"#5a8f3c"},
-  {name:"Mitarbeiter 4", color:"#a34a7a"},
-  {name:"Mitarbeiter 5", color:"#c99a1e"},
-  {name:"Mitarbeiter 6", color:"#4a6fa5"},
-  {name:"Mitarbeiter 7", color:"#8a5a3c"},
-  {name:"Mitarbeiter 8", color:"#5c5c8a"}
-];
-let vacations=[];     // {empIdx, from, to}
-let rufbereitschaft=[]; // {empIdx, from, to}
-let plans={};         // "year-month" -> {assignments:{...}}
-let currentKey=null;
-const FIXED_MA2_TIMES=["08:30–12:30","13:00–16:30","10:30–14:30","15:00–18:30","09:00–14:00","14:00–19:00"];
-let customMa2Times=[]; // dauerhaft gespeicherte, selbst definierte Zeiten
-let ma2ModalCtx=null;  // {hiddenTime, timeLabel, btn, defaultVal}
-
-/* ---------------- edit lock ---------------- */
-let editUnlocked=false;
-// SHA-256-Hash des Bearbeitungs-Passworts (nicht das Passwort selbst im Klartext).
-const EDIT_PASSWORD_HASH="8af952fe0f8f710412eab8bf1e30bfa437256580e4526789df1e4f4bc05936f1";
-
-async function sha256Hex(str){
-  const buf=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-function lockedSelectors(){
-  return [
-    "#employeeList input","#employeeList button","#addEmployeeBtn",
-    "#vacationList input","#vacationList select","#vacationList button","#addVacationBtn",
-    "#rufList input","#rufList select","#rufList button","#addRufBtn",
-    "#planBody select","#planBody input","#planBody button",
-    "#importFile","#importBackupBtn",
-    "#saveToRemoteBtn"
-  ].join(",");
-}
-function applyLockState(){
-  document.querySelectorAll(lockedSelectors()).forEach(el=>{ el.disabled=!editUnlocked; });
-  document.body.classList.toggle("editing", editUnlocked);
-  if(!editUnlocked) renderViewTable();
-  const btn=document.getElementById("editLockToggle");
-  if(btn) btn.textContent = editUnlocked ? "🔓 Bearbeitung sperren" : "🔒 Bearbeitung freischalten";
-  const status=document.getElementById("editLockStatus");
-  if(status) status.textContent = editUnlocked
-    ? "Bearbeitung ist entsperrt."
-    : "Ansicht ist schreibgeschützt – zum Bearbeiten entsperren.";
-}
-async function toggleEditLock(){
-  if(editUnlocked){
-    editUnlocked=false;
-    applyLockState();
-    return;
-  }
-  const pw=prompt("Passwort für die Bearbeitung eingeben:");
-  if(pw===null) return;
-  const hash=await sha256Hex(pw);
-  if(hash===EDIT_PASSWORD_HASH){
-    editUnlocked=true;
-    applyLockState();
-  }else{
-    alert("Falsches Passwort.");
-  }
-}
-
-
-/* ---------------- Ansichtsmodus ---------------- */
-function shiftMonth(delta){
-  let m=parseInt(document.getElementById("monthSel").value,10)+delta;
-  let y=parseInt(document.getElementById("yearInp").value,10);
-  if(m<0){m=11;y--;} else if(m>11){m=0;y++;}
-  document.getElementById("yearInp").value=y;
-  document.getElementById("monthSel").value=m;
-  loadMonth();
-}
-function makeChip(idx,time){
-  const e=employees[idx]; if(!e) return null;
-  const c=document.createElement("span"); c.className="chip";
-  c.style.background=e.color; c.style.color=textColorFor(e.color);
-  c.textContent=e.name.trim();
-  if(time){ const t=document.createElement("small"); t.textContent=time; c.appendChild(t); }
-  return c;
-}
-
-/* ---------------- Druck: Monatskalender ---------------- */
-function isUrlaubEmp(idx){
-  const e=employees[idx]; return !!e && /^\s*(betriebs)?urlaub/i.test(e.name);
-}
-function renderPrintCalendar(){
-  const host=document.getElementById("printCal"); if(!host) return;
-  const rows=[...document.querySelectorAll("#planBody tr")];
-  const month=parseInt(document.getElementById("monthSel").value,10);
-  const year=parseInt(document.getElementById("yearInp").value,10);
-  host.innerHTML="";
-  host.style.setProperty("--weeks",Math.ceil(((new Date(parseInt(document.getElementById("yearInp").value,10),parseInt(document.getElementById("monthSel").value,10),1).getDay()+6)%7+rows.length)/7)||5);
-  if(!rows.length||isNaN(month)||isNaN(year)) return;
-  const h=document.createElement("h2");
-  h.textContent="Dienstplan – "+MONTH_NAMES[month]+" "+year;
-  host.appendChild(h);
-
-  const offset=(new Date(year,month,1).getDay()+6)%7;
-  const dim=rows.length;
-  const weeks=Math.ceil((offset+dim)/7);
-  const tbl=document.createElement("table");
-  tbl.innerHTML="<thead><tr>"+["Mo","Di","Mi","Do","Fr","Sa","So"].map(x=>"<th>"+x+"</th>").join("")+"</tr></thead>";
-  const tb=document.createElement("tbody");
-
-  const chip=(idx,prefix)=>{
-    const e=employees[idx]; if(!e) return null;
-    const c=document.createElement("span"); c.className="pc-chip";
-    c.style.background=e.color; c.style.color=textColorFor(e.color);
-    if(prefix&&!isUrlaubEmp(idx)){ const i=document.createElement("i"); i.textContent=prefix; c.appendChild(i); }
-    c.appendChild(document.createTextNode(e.name.trim()));
-    return c;
-  };
-
-  for(let w=0;w<weeks;w++){
-    const tr=document.createElement("tr");
-    for(let c=0;c<7;c++){
-      const n=w*7+c-offset+1;
-      const td=document.createElement("td");
-      if(n<1||n>dim){ td.className="pc-empty"; tr.appendChild(td); continue; }
-      const src=rows[n-1];
-      td.className="pc-cell"+(c===5?" sat":"")+(c===6?" sun":"")+(src.classList.contains("holiday")?" holiday":"");
-      const hol=src.children[2].textContent.trim();
-      const head=document.createElement("div"); head.className="pc-head";
-      head.innerHTML="<b>"+n+"</b>"; 
-      if(hol){ const hs=document.createElement("span"); hs.className="pc-hol"; hs.textContent=hol; head.appendChild(hs); }
-      td.appendChild(head);
-
-      for(let s=1;s<=2;s++){
-        const timeRaw=((src.querySelector('input[data-key="time'+s+'"]')||{}).value||"").trim();
-        const s1=src.querySelector('select[data-key="s'+s+'_1"]');
-        const s2=src.querySelector('select[data-key="s'+s+'_2"]');
-        const ma2t=((src.querySelector('input[data-key="ma2time'+s+'"]')||{}).value||"").trim();
-        const sharedTime=displayTime(timeRaw||DEFAULT_SHIFT_TIMES[s]);
-        const c1=s1&&s1.value!==""?chip(s1.value,sharedTime):null;
-        const c2=s2&&s2.value!==""?chip(s2.value,ma2t?displayTime(ma2t):sharedTime):null;
-        if(!c1&&!c2) continue;
-        const blk=document.createElement("div"); blk.className="pc-shift";
-        if(c1) blk.appendChild(c1);
-        if(c2) blk.appendChild(c2);
-        td.appendChild(blk);
-      }
-
-      const foot=[];
-      const vacEl=src.querySelector("td.vaccell");
-      const vacNames=vacEl?[...vacEl.querySelectorAll(".vac-name")].map(v=>v.textContent.trim()):[];
-      if(vacNames.length) foot.push("Urlaub: "+vacNames.join(", "));
-      const rufSel=src.querySelector('select[data-key="ruf"]');
-      if(rufSel&&rufSel.value!==""&&employees[rufSel.value]) foot.push("Ruf: "+employees[rufSel.value].name.trim());
-      if(foot.length){ const f=document.createElement("div"); f.className="pc-foot"; f.textContent=foot.join(" · "); td.appendChild(f); }
-      tr.appendChild(td);
-    }
-    tb.appendChild(tr);
-  }
-  tbl.appendChild(tb); host.appendChild(tbl);
-}
-window.addEventListener("beforeprint",renderPrintCalendar);
-
-const wideMQ=window.matchMedia("(min-width:700px)");
-function renderViewTable(){
-  const vb=document.getElementById("viewBody"); if(!vb) return;
-  const wide=wideMQ.matches;
-  const vt=document.getElementById("viewTable");
-  vt.classList.toggle("wide",wide);
-  document.getElementById("viewHead").innerHTML = wide
-    ? "<tr><th>Tag</th><th>Dienst 1</th><th>Dienst 2</th><th>Info</th></tr>"
-    : "<tr><th>Tag</th><th>Dienst 1</th><th>Dienst 2</th></tr>";
-  const head=document.getElementById("sheetHeading");
-  document.getElementById("viewHeading").textContent=head?head.textContent.replace("Dienstplan – ",""):"";
-  vb.innerHTML="";
-  document.querySelectorAll("#planBody tr").forEach(src=>{
-    const cls=[...src.classList].filter(c=>c!=="today");
-    const tds=src.children;
-    const hol=tds[2].textContent.trim();
-    const vacEl=src.querySelector("td.vaccell");
-    const vacEntries=vacEl?[...vacEl.querySelectorAll(".vac-name")]:[];
-    const rufSel=src.querySelector('select[data-key="ruf"]');
-    const hasRuf=!!(rufSel&&rufSel.value!=="");
-    const hasInfo=!!(hol||vacEntries.length||hasRuf);
-
-    const tr=document.createElement("tr");
-    cls.forEach(c=>tr.classList.add(c));
-    if(src.classList.contains("today")) tr.classList.add("today");
-    const d=document.createElement("td"); d.className="v-date";
-    const dayNum=tds[0].textContent.split(".")[0];
-    d.innerHTML = wide ? "<b>"+tds[1].textContent+"</b> "+dayNum+"."+tds[0].textContent.split(".")[1]+"."
-                       : "<b>"+dayNum+"</b><small>"+tds[1].textContent+"</small>";
-    if(!wide && hasInfo) d.rowSpan=2;
-    tr.appendChild(d);
-
-    for(let s=1;s<=2;s++){
-      const td=document.createElement("td");
-      const timeRaw=((src.querySelector('input[data-key="time'+s+'"]')||{}).value||"").trim();
-      const s1=src.querySelector('select[data-key="s'+s+'_1"]');
-      const s2=src.querySelector('select[data-key="s'+s+'_2"]');
-      const ma2t=((src.querySelector('input[data-key="ma2time'+s+'"]')||{}).value||"").trim();
-      const c1=s1&&s1.value!==""?makeChip(s1.value):null;
-      const c2=s2&&s2.value!==""?makeChip(s2.value,(ma2t&&!isUrlaubEmp(s2.value))?displayTime(ma2t):""):null;
-      const real1=!!c1&&!isUrlaubEmp(s1.value);
-      const real2NoOwn=!!c2&&!isUrlaubEmp(s2.value)&&!ma2t;
-      if(c1||c2){
-        const box=document.createElement("div"); box.className="cellbox";
-        if(real1||real2NoOwn){
-          const t=document.createElement("div"); t.className="v-time";
-          t.textContent=displayTime(timeRaw||DEFAULT_SHIFT_TIMES[s]);
-          box.appendChild(t);
-        }
-        if(c1) box.appendChild(c1);
-        if(c2) box.appendChild(c2);
-        td.appendChild(box);
-      }else{
-        td.innerHTML='<span class="v-none">–</span>';
-      }
-      tr.appendChild(td);
-    }
-
-    const infoNodes=[];
-    if(hol){ const h=document.createElement("span"); h.className="v-hol"; h.textContent=hol; infoNodes.push(h); }
-    vacEntries.forEach(v=>{ const sp=document.createElement("span"); sp.className="v-tag"; sp.innerHTML="🌴 "+v.innerHTML; infoNodes.push(sp); });
-    if(hasRuf){
-      const sp=document.createElement("span"); sp.className="v-tag"; sp.appendChild(document.createTextNode("Ruf:"));
-      const ch=makeChip(rufSel.value); if(ch) sp.appendChild(ch); infoNodes.push(sp);
-    }
-
-    if(wide){
-      const it=document.createElement("td"); it.className="v-infocell";
-      infoNodes.forEach(n=>it.appendChild(n));
-      tr.appendChild(it);
-      vb.appendChild(tr);
-    }else{
-      vb.appendChild(tr);
-      if(hasInfo){
-        const ir=document.createElement("tr"); ir.className="v-info";
-        cls.forEach(c=>ir.classList.add(c));
-        const it=document.createElement("td"); it.colSpan=2;
-        infoNodes.forEach(n=>it.appendChild(n));
-        ir.appendChild(it); vb.appendChild(ir);
-      }
-    }
-  });
-}
-(function(){ const _r=renderViewTable; renderViewTable=function(){ _r(); renderPrintCalendar(); }; })();
-if(wideMQ.addEventListener) wideMQ.addEventListener("change",renderViewTable);
-else if(wideMQ.addListener) wideMQ.addListener(renderViewTable);
-
-/* ---------------- storage ---------------- */
-function loadFromStorage(){
-  try{
-    const raw=localStorage.getItem(STORAGE_KEY);
-    if(!raw) return null;
-    return JSON.parse(raw);
-  }catch(e){ console.warn("localStorage nicht verfügbar",e); return null; }
-}
-function persist(){
-  const el=document.getElementById("saveStatus");
-  try{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({employees,vacations,rufbereitschaft,plans,customMa2Times}));
-    const now=new Date();
-    el.textContent="Lokal gesichert · "+now.toLocaleTimeString("de-AT",{hour:"2-digit",minute:"2-digit"});
-    el.classList.remove("bad");
-  }catch(e){
-    el.textContent="Lokale Speicherung nicht verfügbar – bitte regelmäßig eine Datensicherung (.json) exportieren.";
-    el.classList.add("bad");
-  }
-}
-
-/* ---------------- helpers ---------------- */
-function monthKey(year,month){ return year+"-"+month; }
-function easterSunday(year){
-  const a=year%19, b=Math.floor(year/100), c=year%100;
-  const d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25);
-  const g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30;
-  const i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7;
-  const m=Math.floor((a+11*h+22*l)/451);
-  const month=Math.floor((h+l-7*m+114)/31);
-  const day=((h+l-7*m+114)%31)+1;
-  return new Date(year, month-1, day);
-}
-function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
-function ymd(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
-function austrianHolidays(year){
-  const easter=easterSunday(year);
-  const list=[
-    [new Date(year,0,1),"Neujahr"],[new Date(year,0,6),"Heilige Drei Könige"],
-    [addDays(easter,1),"Ostermontag"],[new Date(year,4,1),"Staatsfeiertag"],
-    [addDays(easter,39),"Christi Himmelfahrt"],[addDays(easter,50),"Pfingstmontag"],
-    [addDays(easter,60),"Fronleichnam"],[new Date(year,7,15),"Mariä Himmelfahrt"],
-    [new Date(year,9,26),"Nationalfeiertag"],[new Date(year,10,1),"Allerheiligen"],
-    [new Date(year,11,8),"Mariä Empfängnis"],[new Date(year,11,25),"Christtag"],
-    [new Date(year,11,26),"Stefanitag"]
-  ];
-  const map={}; list.forEach(([d,name])=>{map[ymd(d)]=name;}); return map;
-}
-function formatDateDE(iso){
-  if(!iso) return "–";
-  const [y,m,d]=iso.split("-"); return d+"."+m+"."+y;
-}
-function parseRanges(str){
-  const out=[]; if(!str) return out;
-  const re=/(\d{1,2})[:.](\d{2})\s*[–—\-:]\s*(\d{1,2})[:.](\d{2})/g;
-  let m;
-  while((m=re.exec(str))){ out.push({s:parseInt(m[1],10)*60+parseInt(m[2],10), e:parseInt(m[3],10)*60+parseInt(m[4],10)}); }
-  return out;
-}
-function parseTimeRangeHours(str){
-  // Summe aller Zeitbereiche im Text (Pause zwischen zwei Bereichen zählt nicht)
-  return parseRanges(str).reduce((sum,r)=>{
-    let d=r.e-r.s; if(d<=0) d+=24*60; return sum+d/60;
-  },0);
-}
-function fmtMin(m){ m=((m%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"); }
-function displayTime(str){
-  // z.B. "10:30-14:30  15.00-18:30" -> "10:30–18:30" (nur Beginn und Ende)
-  const r=parseRanges(str);
-  if(!r.length) return (str||"").trim();
-  return fmtMin(r[0].s)+"–"+fmtMin(r[r.length-1].e);
-}
-const DEFAULT_SHIFT_TIMES={1:"08:00–14:00",2:"14:00–20:00"};
-function textColorFor(bg){
-  const c=bg.replace("#","");
-  const r=parseInt(c.substr(0,2),16), g=parseInt(c.substr(2,2),16), b=parseInt(c.substr(4,2),16);
-  const lum=(0.299*r+0.587*g+0.114*b);
-  return lum>150 ? "#1c232c" : "#ffffff";
-}
-
-/* ---------------- month select ---------------- */
-function initMonthSelect(){
-  const sel=document.getElementById("monthSel");
-  MONTH_NAMES.forEach((m,i)=>{
-    const o=document.createElement("option"); o.value=i; o.textContent=m; sel.appendChild(o);
-  });
-  const now=new Date();
-  sel.value=now.getMonth();
-  document.getElementById("yearInp").value=now.getFullYear();
-}
-
-/* ---------------- employees ---------------- */
-function renderEmployeeSettings(){
-  const wrap=document.getElementById("employeeList");
-  wrap.innerHTML="";
-  employees.forEach((e,idx)=>{
-    const div=document.createElement("div");
-    div.className="emp-item";
-    div.innerHTML=`
-      <input type="color" value="${e.color}" onchange="updateEmpColor(${idx},this.value)">
-      <input type="text" value="${e.name}" onchange="updateEmpName(${idx},this.value)">
-      <button class="secondary small" onclick="removeEmployee(${idx})">✕</button>
-    `;
-    wrap.appendChild(div);
-  });
-  applyLockState();
-}
-function updateEmpName(idx,val){ employees[idx].name=val; refreshOptionLabels(); renderLegend(); renderHoursSummary(); renderArchivePanel(); }
-function updateEmpColor(idx,val){
-  employees[idx].color=val; refreshOptionLabels(); renderLegend();
-  document.querySelectorAll("select.slot-select").forEach(s=>applySelectColor(s));
-  renderHoursSummary();
-}
-function addEmployee(){
-  employees.push({name:"Neuer Mitarbeiter", color:"#888888"});
-  renderEmployeeSettings(); refreshCurrentMonthPreserving();
-}
-function removeEmployee(idx){
-  employees.splice(idx,1);
-  renderEmployeeSettings(); refreshCurrentMonthPreserving();
-}
-function refreshOptionLabels(){
-  document.querySelectorAll("select.slot-select").forEach(sel=>{
-    const cur=sel.value;
-    Array.from(sel.options).forEach(opt=>{
-      if(opt.value!=="") opt.textContent=employees[opt.value]?employees[opt.value].name:opt.textContent;
-    });
-    sel.value=cur; applySelectColor(sel);
-  });
-}
-function buildSelect(prevValue){
-  const sel=document.createElement("select");
-  sel.className="slot-select";
-  const empty=document.createElement("option"); empty.value=""; empty.textContent="–"; sel.appendChild(empty);
-  employees.forEach((e,i)=>{
-    const o=document.createElement("option"); o.value=i; o.textContent=e.name; sel.appendChild(o);
-  });
-  if(prevValue!==undefined && prevValue!=="" && employees[prevValue]){ sel.value=prevValue; }
-  sel.addEventListener("change",()=>{ applySelectColor(sel); refreshCurrentMonthPreserving(true); });
-  applySelectColor(sel);
-  return sel;
-}
-function applySelectColor(sel){
-  if(sel.value===""){ sel.style.background=""; sel.style.color=""; sel.classList.add("empty"); }
-  else{
-    const e=employees[sel.value];
-    if(e){ sel.style.background=e.color; sel.style.color=textColorFor(e.color); }
-    sel.classList.remove("empty");
-  }
-}
-/* ---------------- MA2 Zeit-Popup ---------------- */
-function openMa2Modal(ctx){
-  ma2ModalCtx=ctx;
-  document.getElementById("ma2ManualInput").value=ctx.hiddenTime.value||ctx.defaultVal||"";
-  renderMa2ModalOptions();
-  document.getElementById("ma2ModalOverlay").classList.add("open");
-}
-function closeMa2Modal(){
-  document.getElementById("ma2ModalOverlay").classList.remove("open");
-  ma2ModalCtx=null;
-}
-function renderMa2ModalOptions(){
-  const fixedWrap=document.getElementById("ma2FixedList");
-  fixedWrap.innerHTML="";
-  FIXED_MA2_TIMES.forEach(t=>{
-    const b=document.createElement("button");
-    b.type="button"; b.className="opt-btn"; b.textContent=t;
-    b.onclick=()=>applyMa2Time(t);
-    fixedWrap.appendChild(b);
-  });
-  const customWrap=document.getElementById("ma2CustomList");
-  customWrap.innerHTML="";
-  if(customMa2Times.length===0){
-    const span=document.createElement("span"); span.style.fontSize="11.5px"; span.style.color="var(--sub)";
-    span.textContent="Noch keine eigenen Zeiten gespeichert.";
-    customWrap.appendChild(span);
-  }
-  customMa2Times.forEach((t,i)=>{
-    const b=document.createElement("button");
-    b.type="button"; b.className="opt-btn";
-    b.innerHTML=t+' <span class="rm-x">✕</span>';
-    b.onclick=(ev)=>{
-      if(ev.target.classList.contains("rm-x")){ removeCustomMa2Time(i); return; }
-      applyMa2Time(t);
+    // Rule: { add|remove: limit, before: hour, from: hour }
+    // add: triggers when bikes < limit (stops at limit or more)
+    // remove: triggers when bikes > limit (stops at limit or fewer)
+    const rules = {
+      'Mitterweg':                [{ remove: 25 }],
+      'Hauptbahnhof':             [{ add: 5, before: 9 }],
+      'Westbahnhof':              [{ add: 5, before: 9 }, { add: 50, from: 14 }],
+      'Stubaitalbahnhof':         [{ add: 10, before: 18 }],
+      'SOWI/MCI':                 [{ remove: 5 }],
+      'Schöpfstraße / Klinik':    [{ remove: 50, before: 11 }],
+      'Maximilianstraße':         [{ remove: 25 }],
+      'Mühlauer Brücke':          [{ add: 1 }],
+      'Congress / Hofburg':       [{ remove: 5 }],
+      'Fürstenweg':               [{ add: 1, before: 11 }],
+      'Mariahilfpark':            [{ add: 10 }],
+      'UNI-Sportstätten':         [{ remove: 5 }],
+      'Philippine-Welser-Straße': [{ remove: 20 }],
+      'Valiergasse':              [{ add: 10, from: 16 }],
+      'Grabenweg':                [{ add: 10 }],
+      'Hegnerstraße':             [{ remove: 20 }],
+      'Flughafen':                [{ add: 5 }],
+      'Rossaugasse':              [{ remove: 15 }],
+      'Rum Bahnhof':              [{ add: 5 }],
+      'Kaiserschützenplatz':      [{ add: 10 }],
+      'Baggersee':                [{ remove: 15 }],
+      'Messe Bahnhof':            [{ add: 10 }],
+      'Schutzengelkirche':        [{ remove: 15 }],
+      'Vögelebichl':              [{ remove: 15 }]
     };
-    customWrap.appendChild(b);
-  });
-}
-function applyMa2Time(val){
-  if(!ma2ModalCtx) return;
-  ma2ModalCtx.hiddenTime.value=val.trim();
-  ma2ModalCtx.updateBtnState();
-  closeMa2Modal();
-  refreshCurrentMonthPreserving(true);
-}
-function applyMa2Manual(){
-  const val=document.getElementById("ma2ManualInput").value;
-  applyMa2Time(val);
-}
-function saveMa2Manual(){
-  const val=document.getElementById("ma2ManualInput").value.trim();
-  if(!val){ alert("Bitte zuerst eine Zeit eingeben."); return; }
-  if(!customMa2Times.includes(val)){ customMa2Times.push(val); }
-  renderMa2ModalOptions();
-}
-function removeCustomMa2Time(i){
-  customMa2Times.splice(i,1);
-  renderMa2ModalOptions();
-}
-function renderLegend(){
-  const legend=document.getElementById("legend");
-  legend.innerHTML="";
-  const sat=document.createElement("span");
-  sat.innerHTML=`<span class="sw" style="background:var(--sat)"></span>Samstag`;
-  legend.appendChild(sat);
-  const sun=document.createElement("span");
-  sun.innerHTML=`<span class="sw" style="background:var(--sun)"></span>Sonntag`;
-  legend.appendChild(sun);
-  employees.forEach(e=>{
-    const s=document.createElement("span");
-    s.innerHTML=`<span class="sw" style="background:${e.color}"></span>${e.name}`;
-    legend.appendChild(s);
-  });
-}
 
-/* ---------------- vacations ---------------- */
-function addVacation(){ vacations.push({empIdx:0, from:"", to:""}); renderVacationInputs(); renderVacationSummary(); renderArchivePanel(); }
-function removeVacation(i){ vacations.splice(i,1); renderVacationInputs(); renderVacationSummary(); renderArchivePanel(); }
-function updateVacation(i,field,val){ vacations[i][field]=val; renderVacationSummary(); renderArchivePanel(); }
-function renderVacationInputs(){
-  const wrap=document.getElementById("vacationList");
-  wrap.innerHTML="";
-  vacations.forEach((v,i)=>{
-    const row=document.createElement("div"); row.className="vac-row";
-    const empSel=document.createElement("select");
-    employees.forEach((e,idx)=>{
-      const o=document.createElement("option"); o.value=idx; o.textContent=e.name;
-      if(idx==v.empIdx) o.selected=true; empSel.appendChild(o);
-    });
-    empSel.onchange=()=>updateVacation(i,"empIdx",empSel.value);
-    const fromInp=document.createElement("input"); fromInp.type="date"; fromInp.value=v.from;
-    fromInp.onchange=()=>updateVacation(i,"from",fromInp.value);
-    const toLabel=document.createElement("span"); toLabel.textContent="bis"; toLabel.style.fontSize="12px";
-    const toInp=document.createElement("input"); toInp.type="date"; toInp.value=v.to;
-    toInp.onchange=()=>updateVacation(i,"to",toInp.value);
-    const rm=document.createElement("button"); rm.className="rm"; rm.textContent="✕"; rm.onclick=()=>removeVacation(i);
-    row.append(empSel,fromInp,toLabel,toInp,rm);
-    wrap.appendChild(row);
-  });
-  applyLockState();
-}
-function vacOverlapsMonth(v,year,month){
-  if(!v.from||!v.to) return false;
-  const monthStart=new Date(year,month,1), monthEnd=new Date(year,month+1,0);
-  const vFrom=new Date(v.from), vTo=new Date(v.to);
-  return vFrom<=monthEnd && vTo>=monthStart;
-}
-function vacDaysInMonth(v,year,month){
-  if(!v.from||!v.to) return 0;
-  const monthStart=new Date(year,month,1), monthEnd=new Date(year,month+1,0);
-  const vFrom=new Date(v.from), vTo=new Date(v.to);
-  const start=vFrom>monthStart?vFrom:monthStart;
-  const end=vTo<monthEnd?vTo:monthEnd;
-  const diff=Math.round((end-start)/86400000)+1;
-  return diff>0?diff:0;
-}
-function renderVacationSummary(){
-  const month=parseInt(document.getElementById("monthSel").value,10);
-  const year=parseInt(document.getElementById("yearInp").value,10);
-  const body=document.getElementById("vacTableBody");
-  const summary=document.getElementById("vacSummary");
-  body.innerHTML="";
-  const relevant=vacations.filter(v=>vacOverlapsMonth(v,year,month));
-  if(relevant.length===0){ summary.style.display="none"; return; }
-  summary.style.display="block";
-  relevant.forEach(v=>{
-    const e=employees[v.empIdx]; if(!e) return;
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td><span class="vac-dot" style="background:${e.color}"></span>${e.name}</td>
-      <td>${formatDateDE(v.from)}</td><td>${formatDateDE(v.to)}</td>`;
-    body.appendChild(tr);
-  });
-}
+    // Austria Trend Hotel: add when below 10 (name matched loosely)
+    function rulesFor(name) {
+      if (rules[name]) return rules[name];
+      if (/austria\s*trend/i.test(name)) return [{ add: 10 }];
+      return [];
+    }
 
-/* ---------------- Rufbereitschaft ---------------- */
-function addRuf(){ rufbereitschaft.push({empIdx:0, from:"", to:""}); renderRufInputs(); renderRufSummary(); renderArchivePanel(); }
-function removeRuf(i){ rufbereitschaft.splice(i,1); renderRufInputs(); renderRufSummary(); renderArchivePanel(); }
-function updateRuf(i,field,val){ rufbereitschaft[i][field]=val; renderRufSummary(); renderArchivePanel(); }
-function renderRufInputs(){
-  const wrap=document.getElementById("rufList");
-  wrap.innerHTML="";
-  rufbereitschaft.forEach((v,i)=>{
-    const row=document.createElement("div"); row.className="vac-row";
-    const empSel=document.createElement("select");
-    employees.forEach((e,idx)=>{
-      const o=document.createElement("option"); o.value=idx; o.textContent=e.name;
-      if(idx==v.empIdx) o.selected=true; empSel.appendChild(o);
-    });
-    empSel.onchange=()=>updateRuf(i,"empIdx",empSel.value);
-    const fromInp=document.createElement("input"); fromInp.type="date"; fromInp.value=v.from;
-    fromInp.onchange=()=>updateRuf(i,"from",fromInp.value);
-    const toLabel=document.createElement("span"); toLabel.textContent="bis"; toLabel.style.fontSize="12px";
-    const toInp=document.createElement("input"); toInp.type="date"; toInp.value=v.to;
-    toInp.onchange=()=>updateRuf(i,"to",toInp.value);
-    const rm=document.createElement("button"); rm.className="rm"; rm.textContent="✕"; rm.onclick=()=>removeRuf(i);
-    row.append(empSel,fromInp,toLabel,toInp,rm);
-    wrap.appendChild(row);
-  });
-  applyLockState();
-}
-function renderRufSummary(){
-  const month=parseInt(document.getElementById("monthSel").value,10);
-  const year=parseInt(document.getElementById("yearInp").value,10);
-  const body=document.getElementById("rufTableBody");
-  const summary=document.getElementById("rufSummary");
-  body.innerHTML="";
-  const relevant=rufbereitschaft.filter(v=>vacOverlapsMonth(v,year,month));
-  if(relevant.length===0){ summary.style.display="none"; return; }
-  summary.style.display="block";
-  relevant.forEach(v=>{
-    const e=employees[v.empIdx]; if(!e) return;
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td><span class="vac-dot" style="background:${e.color}"></span>${e.name}</td>
-      <td>${formatDateDE(v.from)}</td><td>${formatDateDE(v.to)}</td>`;
-    body.appendChild(tr);
-  });
-}
+    const hourNow = () => Number(new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit', hour12: false, timeZone: 'Europe/Vienna'
+    }).format(new Date())) % 24;
 
-/* ---------------- plan table ---------------- */
-function collectCurrentAssignments(){
-  const body=document.getElementById("planBody");
-  const result={};
-  if(!body) return result;
-  body.querySelectorAll("tr").forEach(tr=>{
-    const day=tr.dataset.day; if(!day) return;
-    tr.querySelectorAll("select.slot-select").forEach(sel=>{ result[day+"_"+sel.dataset.key]=sel.value; });
-    tr.querySelectorAll("input.time-input").forEach(inp=>{ result[day+"_"+inp.dataset.key]=inp.value; });
-  });
-  return result;
-}
-function buildTableDom(month,year,assignments){
-  const holidays=austrianHolidays(year);
-  const daysInMonth=new Date(year,month+1,0).getDate();
-  const todayKey=ymd(new Date());
-  document.getElementById("sheetHeading").textContent="Dienstplan – "+MONTH_NAMES[month]+" "+year;
-  const body=document.getElementById("planBody");
-  body.innerHTML="";
-  for(let d=1;d<=daysInMonth;d++){
-    const dateObj=new Date(year,month,d);
-    const dow=dateObj.getDay();
-    const isWeekend=dow===0||dow===6;
-    const key=ymd(dateObj);
-    const holidayName=holidays[key];
-    const tr=document.createElement("tr");
-    tr.dataset.day=d;
-    if(dow===6) tr.classList.add("saturday");
-    if(dow===0) tr.classList.add("sunday");
-    if(holidayName) tr.classList.add("holiday");
-    if(key===todayKey) tr.classList.add("today");
-
-    const tdDate=document.createElement("td");
-    tdDate.textContent=String(d).padStart(2,"0")+"."+String(month+1).padStart(2,"0")+".";
-    tr.appendChild(tdDate);
-    const tdDay=document.createElement("td"); tdDay.textContent=DAY_NAMES[dow]; tr.appendChild(tdDay);
-    const tdHol=document.createElement("td"); tdHol.className="holname"; tdHol.textContent=holidayName||""; tr.appendChild(tdHol);
-
-    for(let s=1;s<=2;s++){
-      const tdTime=document.createElement("td"); tdTime.className="timecell";
-      const timeInput=document.createElement("input");
-      timeInput.type="text"; timeInput.className="time-input"; timeInput.dataset.key="time"+s;
-      const restoredTime=assignments[d+"_time"+s];
-      if(restoredTime!==undefined){ timeInput.value=restoredTime; }
-      else if(!isWeekend){ timeInput.value = s===1 ? "08:00–14:00" : "14:00–20:00"; }
-      else{ timeInput.value=""; timeInput.placeholder="z.B. 09:00–13:00"; }
-      if(!timeInput.value) timeInput.classList.add("empty");
-      timeInput.addEventListener("change",()=>{ timeInput.classList.toggle("empty", !timeInput.value); refreshCurrentMonthPreserving(true); });
-      tdTime.appendChild(timeInput); tr.appendChild(tdTime);
-
-      for(let sub=1;sub<=2;sub++){
-        const tdSlot=document.createElement("td"); tdSlot.className="slotcell";
-        const restored=assignments[d+"_s"+s+"_"+sub];
-        const sel=buildSelect(restored);
-        sel.dataset.key="s"+s+"_"+sub;
-        if(sub===2){
-          const wrap=document.createElement("div"); wrap.className="ma2-wrap";
-          const hiddenTime=document.createElement("input");
-          hiddenTime.type="hidden"; hiddenTime.className="time-input"; hiddenTime.dataset.key="ma2time"+s;
-          const restoredMa2Time=assignments[d+"_ma2time"+s];
-          hiddenTime.value = restoredMa2Time!==undefined ? restoredMa2Time : "";
-          const timeLabel=document.createElement("span");
-          timeLabel.className="ma2-time-label";
-          const btn=document.createElement("button");
-          btn.type="button";
-          btn.className="ma2time-btn"+(hiddenTime.value?" active":"");
-          btn.textContent="🕐";
-          const updateBtnState=()=>{
-            btn.classList.toggle("active", !!hiddenTime.value);
-            btn.title=hiddenTime.value?("Eigene Zeit für diese Person: "+hiddenTime.value):"Zeit für diese Person anpassen (Standard: gleiche Dienstzeit wie MA 1)";
-            timeLabel.textContent=hiddenTime.value||"";
-            timeLabel.style.display=hiddenTime.value?"inline":"none";
-          };
-          updateBtnState();
-          btn.onclick=()=>{
-            const timeInputEl=tr.querySelector('input[data-key="time'+s+'"]');
-            const defaultVal=timeInputEl?timeInputEl.value:"";
-            openMa2Modal({hiddenTime,updateBtnState,defaultVal});
-          };
-          wrap.appendChild(sel); wrap.appendChild(timeLabel); wrap.appendChild(hiddenTime); wrap.appendChild(btn);
-          tdSlot.appendChild(wrap);
-        }else{
-          tdSlot.appendChild(sel);
+    function getAction(name, bikes, hour) {
+      if (!Number.isFinite(bikes)) return null;
+      for (const r of rulesFor(name)) {
+        if (r.before !== undefined && !(hour < r.before)) continue;
+        if (r.from !== undefined && !(hour >= r.from)) continue;
+        if (r.add !== undefined && bikes < r.add) {
+          return { type: 'add', text: `Add (until ${r.add} or more)` };
         }
-        tr.appendChild(tdSlot);
+        if (r.remove !== undefined && bikes > r.remove) {
+          return { type: 'remove', text: `Remove (until ${r.remove} or fewer)` };
+        }
       }
+      // Any empty station without an active rule: treat as "add"
+      if (bikes === 0) return { type: 'add', text: 'Add (station is empty)' };
+      return null;
     }
 
-    const tdVac=document.createElement("td"); tdVac.className="vaccell";
-    const onVacToday=vacations.filter(v=>v.from&&v.to&&key>=v.from&&key<=v.to);
-    if(onVacToday.length>0){
-      tdVac.innerHTML=onVacToday.map(v=>{
-        const e=employees[v.empIdx];
-        if(!e) return "";
-        return `<span class="vac-name"><span class="vac-dot" style="background:${e.color}"></span>${e.name}</span>`;
-      }).join(", ");
-    }
-    tr.appendChild(tdVac);
+    const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    })[char]);
 
-    const tdRuf=document.createElement("td"); tdRuf.className="rufcell";
-    const isRufDay = dow===6 || dow===0 || !!holidayName;
-    if(isRufDay){
-      const restoredRuf=assignments[d+"_ruf"];
-      const rufSel=buildSelect(restoredRuf);
-      rufSel.dataset.key="ruf";
-      tdRuf.appendChild(rufSel);
-    }else{
-      tdRuf.textContent="–";
-      tdRuf.classList.add("rufcell-disabled");
-    }
-    tr.appendChild(tdRuf);
+    let rowsCache = [];
+    let claims = new Map();   // station_id -> owner id
+    let myId = null;
+    let claimsCol = null;
 
-    body.appendChild(tr);
-  }
-  renderLegend();
-  applyLockState();
-}
-function renderHoursSummary(){
-  const body=document.getElementById("planBody");
-  const hoursByEmp={};
-  employees.forEach((e,i)=>{ hoursByEmp[i]=0; });
-  if(body){
-    body.querySelectorAll("tr").forEach(tr=>{
-      const time1Inp=tr.querySelector('input[data-key="time1"]');
-      const time2Inp=tr.querySelector('input[data-key="time2"]');
-      const t1=(time1Inp&&time1Inp.value.trim())?time1Inp.value:DEFAULT_SHIFT_TIMES[1];
-      const t2=(time2Inp&&time2Inp.value.trim())?time2Inp.value:DEFAULT_SHIFT_TIMES[2];
-      const h1=parseTimeRangeHours(t1);
-      const h2=parseTimeRangeHours(t2);
-      tr.querySelectorAll('select.slot-select').forEach(sel=>{
-        if(sel.value===""||sel.dataset.key==="ruf") return;
-        const idx=sel.value;
-        const key=sel.dataset.key;
-        const shiftNum=key.startsWith("s1")?1:2;
-        let h=shiftNum===1?h1:h2;
-        if(key.endsWith("_2")){
-          const overrideInp=tr.querySelector('input[data-key="ma2time'+shiftNum+'"]');
-          if(overrideInp && overrideInp.value.trim()!==""){
-            h=parseTimeRangeHours(overrideInp.value);
-          }
+    function render() {
+      // Claimed stations first, then stations needing action, then by name
+      const sorted = [...rowsCache].sort((a, b) =>
+        (claims.has(b.id) - claims.has(a.id)) ||
+        (!!b.action - !!a.action) ||
+        a.name.localeCompare(b.name, 'de'));
+      list.innerHTML = sorted.map(r => {
+        const owner = claims.get(r.id);
+        const mine = owner && owner.mine;
+        const cls = [r.action ? r.action.type : '', owner ? 'claimed' : ''].join(' ').trim();
+        let claimHtml = '';
+        if (claimsCol) {
+          claimHtml = owner
+            ? `<div class="claim"><span class="who">${mine ? '✋ Claimed by you' : '🔒 Claimed by ' + escapeHtml(owner.name || 'someone')} · ${Math.max(1, Math.ceil(owner.left / 60000))} min left</span>${mine ? `<button class="cbtn" data-act="release" data-id="${escapeHtml(r.id)}" data-name="${escapeHtml(r.name)}">Release</button>` : ''}</div>`
+            : `<div class="claim"><span class="who">Not claimed</span><button class="cbtn" data-act="claim" data-id="${escapeHtml(r.id)}" data-name="${escapeHtml(r.name)}">Claim</button></div>`;
         }
-        if(h && hoursByEmp[idx]!==undefined) hoursByEmp[idx]+=h;
+        return `
+          <li class="${cls}" data-id="${escapeHtml(r.id)}" data-name="${escapeHtml(r.name)}" style="cursor:pointer">
+            <span class="name">${escapeHtml(r.name)}</span>
+            <span class="count">${Number.isFinite(r.bikes) ? r.bikes : '—'}<small>bikes</small></span>
+            ${r.action ? `<span class="action">${r.action.text}</span>` : ''}
+            ${claimHtml}
+          </li>`;
+      }).join('');
+    }
+
+    function ask(text) {
+      const dlg = document.getElementById('dlg');
+      document.getElementById('dlgText').textContent = text;
+      return new Promise(resolve => {
+        const done = v => { dlg.close(); yes.onclick = no.onclick = null; resolve(v); };
+        const yes = document.getElementById('dlgYes'), no = document.getElementById('dlgNo');
+        yes.onclick = () => done(true);
+        no.onclick = () => done(false);
+        dlg.oncancel = () => resolve(false);
+        dlg.showModal();
       });
-    });
-  }
-  const tbody=document.getElementById("hoursTableBody");
-  if(!tbody) return;
-  const month=parseInt(document.getElementById("monthSel").value,10);
-  const year=parseInt(document.getElementById("yearInp").value,10);
-  const daysInMonth=new Date(year,month+1,0).getDate();
-  const weeksInMonth=daysInMonth/7;
-  tbody.innerHTML="";
-  employees.forEach((e,idx)=>{
-    const tr=document.createElement("tr");
-    const val=hoursByEmp[idx]||0;
-    const display=(Math.round(val*100)/100).toString().replace(".",",");
-    const perWeek=weeksInMonth>0?val/weeksInMonth:0;
-    const perWeekDisplay=(Math.round(perWeek*100)/100).toString().replace(".",",");
-    tr.innerHTML=`<td><span class="vac-dot" style="background:${e.color}"></span>${e.name}</td><td>${display} Std.</td><td>${perWeekDisplay} Std.</td>`;
-    tbody.appendChild(tr);
-  });
-}
-function refreshCurrentMonthPreserving(skipRebuild){
-  if(currentKey===null) return;
-  plans[currentKey]=plans[currentKey]||{};
-  plans[currentKey].assignments=collectCurrentAssignments();
-  if(!skipRebuild){
-    const [y,m]=currentKey.split("-").map(Number);
-    buildTableDom(m,y,plans[currentKey].assignments);
-  }
-  renderHoursSummary();
-  renderArchivePanel();
-}
-
-function loadMonth(){
-  if(currentKey!==null){
-    plans[currentKey]=plans[currentKey]||{};
-    plans[currentKey].assignments=collectCurrentAssignments();
-  }
-  const month=parseInt(document.getElementById("monthSel").value,10);
-  const year=parseInt(document.getElementById("yearInp").value,10);
-  currentKey=monthKey(year,month);
-  const assignments=(plans[currentKey]&&plans[currentKey].assignments)?plans[currentKey].assignments:{};
-  buildTableDom(month,year,assignments);
-  renderVacationSummary();
-  renderRufSummary();
-  renderHoursSummary();
-  renderArchivePanel();
-}
-
-/* ---------------- archive & compare ---------------- */
-function renderArchivePanel(){
-  const list=document.getElementById("archiveList");
-  const keys=Object.keys(plans).filter(k=>{
-    const a=plans[k]&&plans[k].assignments;
-    return a && Object.values(a).some(v=>v);
-  }).sort((a,b)=>{
-    const [ay,am]=a.split("-").map(Number), [by,bm]=b.split("-").map(Number);
-    return ay-by || am-bm;
-  });
-  list.innerHTML="";
-  if(keys.length===0){ list.innerHTML="<p class='hint' style='margin:0;'>Noch keine weiteren Monate mit Einträgen gespeichert.</p>"; return; }
-  keys.forEach(k=>{
-    const [y,m]=k.split("-").map(Number);
-    const row=document.createElement("div"); row.className="archive-row";
-    row.innerHTML=`
-      <input type="checkbox" class="cmp-check" value="${k}">
-      <span>${MONTH_NAMES[m]} ${y}${k===currentKey?" (aktuell)":""}</span>
-      <button type="button" class="secondary small" onclick="openArchivedMonth(${y},${m})">Öffnen</button>
-      <button type="button" class="warn small" onclick="deleteArchivedMonth('${k}')">Löschen</button>
-    `;
-    list.appendChild(row);
-  });
-}
-function openArchivedMonth(y,m){
-  document.getElementById("yearInp").value=y;
-  document.getElementById("monthSel").value=m;
-  loadMonth();
-}
-function deleteArchivedMonth(k){
-  if(!confirm("Diesen Monat wirklich löschen? Das kann nicht rückgängig gemacht werden.")) return;
-  delete plans[k];
-  if(k===currentKey){ currentKey=null; }
-  renderArchivePanel();
-}
-function compareSelected(){
-  const checks=[...document.querySelectorAll(".cmp-check:checked")].map(c=>c.value).sort((a,b)=>{
-    const [ay,am]=a.split("-").map(Number), [by,bm]=b.split("-").map(Number);
-    return ay-by || am-bm;
-  });
-  const out=document.getElementById("compareResult");
-  if(checks.length===0){ out.innerHTML="<p class='hint' style='margin:0;'>Bitte mindestens einen gespeicherten Monat auswählen.</p>"; return; }
-  let html="<h3 style='font-size:12px;color:var(--accent-dark);margin:8px 0 4px;'>Schichten pro Mitarbeiter</h3>";
-  html+="<table class='vac-table'><thead><tr><th>Mitarbeiter</th>";
-  checks.forEach(k=>{ const [y,m]=k.split("-").map(Number); html+=`<th>${MONTH_NAMES[m]} ${y}</th>`; });
-  html+="</tr></thead><tbody>";
-  employees.forEach((e,idx)=>{
-    html+=`<tr><td><span class="vac-dot" style="background:${e.color}"></span>${e.name}</td>`;
-    checks.forEach(k=>{
-      const a=(plans[k]&&plans[k].assignments)||{};
-      const count=Object.entries(a).filter(([key,val])=>/_(s1_1|s1_2|s2_1|s2_2)$/.test(key) && String(val)===String(idx)).length;
-      html+=`<td>${count}</td>`;
-    });
-    html+="</tr>";
-  });
-  html+="</tbody></table>";
-
-  html+="<h3 style='font-size:12px;color:var(--accent-dark);margin:12px 0 4px;'>Urlaubstage pro Mitarbeiter</h3>";
-  html+="<table class='vac-table'><thead><tr><th>Mitarbeiter</th>";
-  checks.forEach(k=>{ const [y,m]=k.split("-").map(Number); html+=`<th>${MONTH_NAMES[m]} ${y}</th>`; });
-  html+="</tr></thead><tbody>";
-  employees.forEach((e,idx)=>{
-    html+=`<tr><td><span class="vac-dot" style="background:${e.color}"></span>${e.name}</td>`;
-    checks.forEach(k=>{
-      const [y,m]=k.split("-").map(Number);
-      const days=vacations.filter(v=>v.empIdx==idx).reduce((sum,v)=>sum+vacDaysInMonth(v,y,m),0);
-      html+=`<td>${days}</td>`;
-    });
-    html+="</tr>";
-  });
-  html+="</tbody></table>";
-  out.innerHTML=html;
-}
-
-/* ---------------- backup export/import ---------------- */
-function exportBackup(){
-  if(currentKey!==null){ plans[currentKey]=plans[currentKey]||{}; plans[currentKey].assignments=collectCurrentAssignments(); }
-  const data={employees,vacations,rufbereitschaft,plans,customMa2Times,savedAt:new Date().toISOString()};
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a"); a.href=url; a.download=`Dienstplan_Datensicherung_${ymd(new Date())}.json`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
-}
-function importBackupFile(file){
-  const reader=new FileReader();
-  reader.onload=()=>{
-    try{
-      const data=JSON.parse(reader.result);
-      if(Array.isArray(data.employees)&&data.employees.length) employees=data.employees;
-      if(Array.isArray(data.vacations)) vacations=data.vacations;
-      if(Array.isArray(data.rufbereitschaft)) rufbereitschaft=data.rufbereitschaft;
-      if(data.plans && typeof data.plans==="object") plans={...plans,...data.plans};
-      if(Array.isArray(data.customMa2Times)) customMa2Times=data.customMa2Times;
-      renderEmployeeSettings();
-      renderVacationInputs();
-      renderRufInputs();
-      currentKey=null;
-      loadMonth();
-      alert("Datensicherung erfolgreich importiert.");
-    }catch(e){
-      alert("Datei konnte nicht gelesen werden: "+e.message);
     }
-  };
-  reader.readAsText(file,"utf-8");
-}
 
-/* ---------------- Excel / Word export ---------------- */
-function hexToARGB(hex){
-  const c=(hex||"888888").replace("#","").toUpperCase();
-  return "FF"+c;
-}
-function thinBorder(){
-  const b={style:"thin",color:{rgb:"FFD7DEE4"}};
-  return {top:b,bottom:b,left:b,right:b};
-}
-function exportExcel(){
-  if(typeof XLSX==="undefined"){
-    alert("Die Excel-Bibliothek konnte nicht geladen werden (dafür ist einmalig eine Internetverbindung nötig). Bitte Internetverbindung prüfen und erneut versuchen.");
-    return;
-  }
-  const table=document.getElementById("planTable");
-
-  const headerStyle={
-    font:{bold:true,color:{rgb:"FF1C232C"}},
-    fill:{fgColor:{rgb:"FFE7ECEF"}},
-    alignment:{horizontal:"center",vertical:"center",wrapText:true},
-    border:thinBorder()
-  };
-  const headerRow=[...table.querySelectorAll("thead th")].map(th=>({v:th.textContent,t:"s",s:headerStyle}));
-  const wsData=[headerRow];
-
-  table.querySelectorAll("#planBody tr").forEach(tr=>{
-    let rowBg=null;
-    if(tr.classList.contains("holiday")) rowBg="FBE8D6";
-    else if(tr.classList.contains("sunday")) rowBg="F2A6AD";
-    else if(tr.classList.contains("saturday")) rowBg="A9D3E8";
-
-    const row=[];
-    tr.querySelectorAll("td").forEach(td=>{
-      const sel=td.querySelector("select"); const inp=td.querySelector("input");
-      let text="";
-      const cellStyle={border:thinBorder(),alignment:{horizontal:"center",vertical:"center"}};
-
-      if(sel){
-        const opt=sel.selectedOptions[0];
-        text=opt?opt.textContent:"";
-        const ma2Hidden=td.querySelector('input[type="hidden"].time-input');
-        if(ma2Hidden && ma2Hidden.value.trim()!==""){
-          text = text ? (text+" ("+ma2Hidden.value.trim()+")") : text;
-        }
-        if(sel.value!==""){
-          const emp=employees[sel.value];
-          if(emp){
-            cellStyle.fill={fgColor:{rgb:hexToARGB(emp.color)}};
-            cellStyle.font={bold:true,color:{rgb:hexToARGB(textColorFor(emp.color))}};
-          }
-        }else if(rowBg){
-          cellStyle.fill={fgColor:{rgb:"FF"+rowBg}};
-        }
-      }else if(inp){
-        text=inp.value;
-        if(rowBg) cellStyle.fill={fgColor:{rgb:"FF"+rowBg}};
-      }else{
-        text=td.textContent;
-        if(td.classList.contains("holname")){
-          cellStyle.font={color:{rgb:"FF8A4A1F"},bold:true};
-          cellStyle.alignment.horizontal="left";
-        }
-        if(rowBg) cellStyle.fill={fgColor:{rgb:"FF"+rowBg}};
+    list.addEventListener('click', async e => {
+      const li = e.target.closest('li[data-id]');
+      if (!li || !claimsCol || !myId) return;
+      const { id, name } = li.dataset;
+      const owner = claims.get(id);
+      if (owner && !owner.mine) return;
+      if (!owner && !getName()) return;
+      const act = owner ? 'release' : 'claim';
+      const b = li.querySelector('button') || document.createElement('button');
+            b.disabled = true;
+      try {
+        const r = await api('POST', { id, action: act, station: name });
+        if (!r.ok && r.status !== 409) { const j = await r.json().catch(() => ({})); throw new Error(j.error || ('HTTP ' + r.status)); }
+        await loadClaims();
+      } catch (err) {
+        meta.textContent = 'Could not save (' + err.message + ')';
       }
-      row.push({v:text,t:"s",s:cellStyle});
     });
-    wsData.push(row);
-  });
 
-  // Rufbereitschaft ganz unten im Dienstplan-Blatt anfügen
-  const rufMonth=parseInt(document.getElementById("monthSel").value,10);
-  const rufYear=parseInt(document.getElementById("yearInp").value,10);
-  const relevantRuf=rufbereitschaft.filter(v=>vacOverlapsMonth(v,rufYear,rufMonth));
-  wsData.push([{v:"",t:"s"}]);
-  wsData.push([{v:"Rufbereitschaft in diesem Monat",t:"s",s:{font:{bold:true,color:{rgb:"FF1C232C"}}}}]);
-  if(relevantRuf.length===0){
-    wsData.push([{v:"– keine Einträge –",t:"s"}]);
-  }else{
-    const rufHeaderStyle={font:{bold:true},fill:{fgColor:{rgb:"FFE7ECEF"}},border:thinBorder()};
-    wsData.push([
-      {v:"Mitarbeiter",t:"s",s:rufHeaderStyle},
-      {v:"Von",t:"s",s:rufHeaderStyle},
-      {v:"Bis",t:"s",s:rufHeaderStyle}
-    ]);
-    relevantRuf.forEach(v=>{
-      const emp=employees[v.empIdx];
-      if(!emp) return;
-      wsData.push([
-        {v:emp.name,t:"s",s:{border:thinBorder(),fill:{fgColor:{rgb:hexToARGB(emp.color)}},font:{bold:true,color:{rgb:hexToARGB(textColorFor(emp.color))}}}},
-        {v:formatDateDE(v.from),t:"s",s:{border:thinBorder()}},
-        {v:formatDateDE(v.to),t:"s",s:{border:thinBorder()}}
-      ]);
+    const clientId = (() => {
+      try {
+        let v = localStorage.getItem('clientId');
+        if (!v) { v = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)); localStorage.setItem('clientId', v); }
+        return v;
+      } catch { return null; }
+    })();
+
+    function getName() {
+      try {
+        let n = localStorage.getItem('name');
+        if (!n) {
+          n = (prompt('Your name:') || '').trim().slice(0, 30);
+          if (n) localStorage.setItem('name', n);
+        }
+        return n;
+      } catch { return ''; }
+    }
+
+    function api(method, body, path = 'api/claims') {
+      return fetch(path, {
+        method, cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', 'X-Client': clientId || '', 'X-Name': encodeURIComponent(localStorage.getItem('name') || ''), 'X-Key': localStorage.getItem('accessKey') || '' },
+        body: body ? JSON.stringify(body) : undefined
+      });
+    }
+
+    async function loadClaims() {
+      const r = await api('GET');
+      if (r.status === 401) {
+        const k = prompt('Access key:');
+        if (k) { localStorage.setItem('accessKey', k); return loadClaims(); }
+        return;
+      }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();               // { stationId: { mine, name, left } }
+      claims = new Map(Object.entries(data));
+      render();
+    }
+
+    async function initClaims() {
+      if (!clientId) return;
+      myId = clientId;
+      claimsCol = true;
+      if (location.protocol === 'file:') { meta.textContent = 'Open via the server (http://localhost:8080), not as a file.'; claimsCol = null; return; }
+      try { await loadClaims(); } catch { meta.textContent = 'Claims server not reachable.'; claimsCol = null; render(); return; }
+      setInterval(() => { if (!document.hidden) loadClaims().catch(() => {}); }, 5000);
+    }
+
+    async function updateTable() {
+      try {
+        const cacheKey = `?_=${Date.now()}`;
+        const [infoResponse, statusResponse] = await Promise.all([
+          fetch(infoUrl + cacheKey, { cache: 'no-store' }),
+          fetch(statusUrl + cacheKey, { cache: 'no-store' })
+        ]);
+        if (!infoResponse.ok || !statusResponse.ok) throw new Error('network');
+
+        const [info, status] = await Promise.all([infoResponse.json(), statusResponse.json()]);
+        const statusById = new Map(status.data.stations.map(s => [s.station_id, s.num_bikes_available]));
+        const hour = hourNow();
+
+        rowsCache = info.data.stations
+          .filter(s => !s.is_virtual_station)
+          .map(s => {
+            const bikes = statusById.get(s.station_id);
+            return { id: String(s.station_id), name: s.name, bikes, action: getAction(s.name, bikes, hour) };
+          })
+          .sort((a, b) => (!!b.action - !!a.action) || a.name.localeCompare(b.name, 'de'));
+
+        render();
+
+        const rows = rowsCache;
+        const todo = rows.filter(r => r.action).length;
+        const time = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Vienna' });
+        meta.textContent = `${todo} station${todo === 1 ? '' : 's'} need action · updated ${time}`;
+      } catch {
+        meta.textContent = 'Failed to load live data.';
+      }
+    }
+
+    const btn = document.getElementById('refresh');
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Refreshing…';
+      await updateTable();
+      btn.disabled = false;
+      btn.textContent = 'Refresh';
     });
-  }
 
-  const ws=XLSX.utils.aoa_to_sheet(wsData);
-  ws["!cols"]=[{wch:10},{wch:6},{wch:15},{wch:12},{wch:15},{wch:22},{wch:12},{wch:15},{wch:22},{wch:20},{wch:18}];
-
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Dienstplan");
-
-  // Farb-Legende: welche Farbe gehört zu welchem Mitarbeiter
-  const legendHeaderStyle={font:{bold:true},fill:{fgColor:{rgb:"FFE7ECEF"}},border:thinBorder()};
-  const legendData=[[{v:"Mitarbeiter",t:"s",s:legendHeaderStyle},{v:"Farbe",t:"s",s:legendHeaderStyle}]];
-  employees.forEach(e=>{
-    legendData.push([
-      {v:e.name,t:"s",s:{border:thinBorder()}},
-      {v:"",t:"s",s:{border:thinBorder(),fill:{fgColor:{rgb:hexToARGB(e.color)}}}}
-    ]);
-  });
-  const legendWs=XLSX.utils.aoa_to_sheet(legendData);
-  legendWs["!cols"]=[{wch:22},{wch:10}];
-  XLSX.utils.book_append_sheet(wb, legendWs, "Legende");
-
-  // Urlaub
-  const vacHeaderStyle={font:{bold:true},fill:{fgColor:{rgb:"FFE7ECEF"}},border:thinBorder()};
-  const vacRows=[[{v:"Mitarbeiter",t:"s",s:vacHeaderStyle},{v:"Von",t:"s",s:vacHeaderStyle},{v:"Bis",t:"s",s:vacHeaderStyle}]];
-  document.querySelectorAll("#vacTableBody tr").forEach(tr=>{
-    const cells=[...tr.querySelectorAll("td")].map(td=>({v:td.textContent.trim(),t:"s",s:{border:thinBorder()}}));
-    vacRows.push(cells);
-  });
-  if(vacRows.length>1){
-    const vacWs=XLSX.utils.aoa_to_sheet(vacRows);
-    vacWs["!cols"]=[{wch:22},{wch:13},{wch:13}];
-    XLSX.utils.book_append_sheet(wb, vacWs, "Urlaub");
-  }
-
-  const monthName=MONTH_NAMES[parseInt(document.getElementById("monthSel").value,10)];
-  XLSX.writeFile(wb, `Dienstplan_${document.getElementById("yearInp").value}_${monthName}.xlsx`);
-}
-
-
-/* ---------------- remote data ---------------- */
-// jsonbin.io Zugangsdaten (fest im Code hinterlegt – nicht in der UI sichtbar).
-const JSONBIN_API_KEY="$2a$10$QCMvn38D65XaMXTP7Nvpge7SSB5ehOfASZaHcYHcXqih7QYpdb3mC";
-const JSONBIN_BIN_ID="6aa9a64dac6210605ad1ee11";
-// Fallback-Adresse (alte statische Datei neben index.html), wird nur verwendet
-// solange JSONBIN_BIN_ID noch leer ist.
-const REMOTE_DATA_URL="https://marioistsuper.netlify.app/lastdienstplan.json";
-
-function collectFullData(){
-  if(currentKey!==null){ plans[currentKey]=plans[currentKey]||{}; plans[currentKey].assignments=collectCurrentAssignments(); }
-  return {employees,vacations,rufbereitschaft,plans,customMa2Times,savedAt:new Date().toISOString()};
-}
-
-async function saveToRemote(){
-  const statusEl=document.getElementById("remoteSaveStatus");
-  if(!JSONBIN_API_KEY){
-    alert("JSONBIN_API_KEY ist im Code noch nicht gesetzt.");
-    return;
-  }
-  statusEl.textContent="Speichere auf Server…";
-  statusEl.classList.remove("bad");
-  const data=collectFullData();
-  try{
-    const creating=!JSONBIN_BIN_ID;
-    const url=creating ? "https://api.jsonbin.io/v3/b" : "https://api.jsonbin.io/v3/b/"+JSONBIN_BIN_ID;
-    const headers={
-      "Content-Type":"application/json",
-      "X-Master-Key":JSONBIN_API_KEY,
-      "X-Bin-Private":"false"
+    // ---- Push notifications ----
+    const notifyBtn = document.getElementById('notify');
+    const pushOk = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    const b64 = s => {
+      const p = '='.repeat((4 - s.length % 4) % 4);
+      const raw = atob((s + p).replace(/-/g, '+').replace(/_/g, '/'));
+      return Uint8Array.from(raw, c => c.charCodeAt(0));
     };
-    if(creating) headers["X-Bin-Name"]="Dienstplan";
-    const res=await fetch(url,{method:creating?"POST":"PUT",headers,body:JSON.stringify(data)});
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    const json=await res.json();
-    if(creating && json.metadata && json.metadata.id){
-      console.info("Neue jsonbin.io Bin ID – bitte in JSONBIN_BIN_ID im Code eintragen:", json.metadata.id);
-      alert("Neue Bin ID erstellt: "+json.metadata.id+"\n\nBitte diesen Wert in JSONBIN_BIN_ID im Code eintragen, sonst wird bei jedem Speichern eine neue Bin angelegt.");
+    async function pushState() {
+      const reg = await navigator.serviceWorker.ready;
+      return { reg, sub: await reg.pushManager.getSubscription() };
     }
-    persist();
-    const now=new Date();
-    statusEl.textContent="✅ Auf Server gespeichert · "+now.toLocaleTimeString("de-AT",{hour:"2-digit",minute:"2-digit"});
-  }catch(e){
-    statusEl.textContent="❌ Speichern auf Server fehlgeschlagen: "+e.message;
-    statusEl.classList.add("bad");
-  }
-}
-
-async function loadRemoteData(){
-  try{
-    if(JSONBIN_BIN_ID){
-      const url="https://api.jsonbin.io/v3/b/"+JSONBIN_BIN_ID+"/latest?t="+Date.now();
-      const headers=JSONBIN_API_KEY?{"X-Master-Key":JSONBIN_API_KEY}:{};
-      const response=await fetch(url,{cache:"no-store",headers});
-      if(!response.ok) throw new Error("HTTP "+response.status);
-      const payload=await response.json();
-      const data=payload.record||payload;
-      applyRemoteData(data);
-      return true;
+    async function sendSub(sub) {
+      const r = await api('POST', { action: 'subscribe', subscription: sub.toJSON() }, 'api/push');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
     }
-    const response=await fetch(REMOTE_DATA_URL+"?t="+Date.now(),{cache:"no-store"});
-    if(!response.ok) throw new Error("HTTP "+response.status);
-    const data=await response.json();
-    applyRemoteData(data);
-    return true;
-  }catch(e){
-    console.warn("Online-Dienstplan konnte nicht geladen werden:",e);
-    return false;
-  }
-}
-function applyRemoteData(data){
-  if(Array.isArray(data.employees)&&data.employees.length) employees=data.employees;
-  if(Array.isArray(data.vacations)) vacations=data.vacations;
-  if(Array.isArray(data.rufbereitschaft)) rufbereitschaft=data.rufbereitschaft;
-  if(data.plans&&typeof data.plans==="object") plans=data.plans;
-  if(Array.isArray(data.customMa2Times)) customMa2Times=data.customMa2Times;
-}
-
-/* ---------------- init ---------------- */
-async function initApp(){
-  const remoteLoaded=await loadRemoteData();
-
-  if(!remoteLoaded){
-    const stored=loadFromStorage();
-    if(stored){
-      if(Array.isArray(stored.employees)&&stored.employees.length) employees=stored.employees;
-      if(Array.isArray(stored.vacations)) vacations=stored.vacations;
-      if(Array.isArray(stored.rufbereitschaft)) rufbereitschaft=stored.rufbereitschaft;
-      if(stored.plans&&typeof stored.plans==="object") plans=stored.plans;
-      if(Array.isArray(stored.customMa2Times)) customMa2Times=stored.customMa2Times;
+    async function refreshNotifyBtn() {
+      const { sub } = await pushState();
+      notifyBtn.textContent = sub ? '🔔 On' : '🔕 Off';
     }
-  }
+    async function togglePush() {
+      notifyBtn.disabled = true;
+      try {
+        const { reg, sub } = await pushState();
+        if (sub) {
+          await api('POST', { action: 'unsubscribe' }, 'api/push');
+          await sub.unsubscribe();
+        } else {
+          if (await Notification.requestPermission() !== 'granted') throw new Error('permission denied');
+          const r = await api('GET', null, 'api/push');
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const { publicKey } = await r.json();
+          const s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(publicKey) });
+          await sendSub(s);
+        }
+      } catch (err) { meta.textContent = 'Notifications: ' + err.message; }
+      notifyBtn.disabled = false;
+      refreshNotifyBtn().catch(() => {});
+    }
+    if (pushOk) {
+      notifyBtn.hidden = false;
+      notifyBtn.textContent = '🔕 Off';
+      notifyBtn.addEventListener('click', togglePush);
+      pushState().then(({ sub }) => { if (sub) sendSub(sub).catch(() => {}); refreshNotifyBtn(); }).catch(() => {});
+    }
 
-  initMonthSelect();
-  renderEmployeeSettings();
-  renderVacationInputs();
-  renderRufInputs();
-  loadMonth();
-}
-
-initApp();
-</script>
-<div class="ma2modal-overlay no-print" id="ma2ModalOverlay">
-  <div class="ma2modal">
-    <h3>Dienstzeit für diese Person</h3>
-    <h4>Fixe Arbeitszeiten</h4>
-    <div class="opt-list" id="ma2FixedList"></div>
-    <h4>Eigene Zeiten</h4>
-    <div class="opt-list" id="ma2CustomList"></div>
-    <div class="manual-row">
-      <input type="text" id="ma2ManualInput" placeholder="z.B. 09:15–13:15">
-      <button class="small" onclick="applyMa2Manual()">Übernehmen</button>
-    </div>
-    <div class="manual-row">
-      <button class="small secondary" style="width:100%" onclick="saveMa2Manual()">Als eigene Zeit dauerhaft speichern</button>
-    </div>
-    <button class="default-btn" onclick="applyMa2Time('')">Standard-Dienstzeit verwenden</button>
-    <div class="close-row"><button class="small" onclick="closeMa2Modal()">Schließen</button></div>
-  </div>
-</div>
-<script>
-if("serviceWorker" in navigator){
-  window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
-}
-</script>
+    updateTable();
+    initClaims();
+  </script>
+  <script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 </body>
 </html>
