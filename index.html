@@ -216,6 +216,8 @@
   /* Breite Ansicht: jeder Tag möglichst in einer Zeile */
   #viewTable.wide{table-layout:auto;}
   #viewTable.wide col.c1{width:9%;} #viewTable.wide col.c2,#viewTable.wide col.c3{width:31%;} #viewTable.wide col.c4{width:29%;}
+  /* vergangene Tage (nur mobile Ansicht) abdunkeln */
+  #viewTable:not(.wide) tr.past td{opacity:.4;}
   #viewTable.wide th{font-size:11.5px;padding:6px 8px;}
   #viewTable.wide td{white-space:nowrap;text-align:left;vertical-align:middle;padding:5px 8px;font-size:12.5px;}
   #viewTable.wide td.v-date{font-size:13px;}
@@ -587,8 +589,11 @@ function renderViewTable(){
   const head=document.getElementById("sheetHeading");
   document.getElementById("viewHeading").textContent=head?head.textContent.replace("Dienstplan – ",""):"";
   vb.innerHTML="";
+  const todayKeyV=ymd(new Date());
+  const [curY,curM]=(currentKey||"").split("-").map(Number);
   document.querySelectorAll("#planBody tr").forEach(src=>{
     const cls=[...src.classList].filter(c=>c!=="today");
+    if(!isNaN(curY)&&ymd(new Date(curY,curM,+src.dataset.day))<todayKeyV) cls.push("past");
     const tds=src.children;
     const hol=tds[2].textContent.trim();
     const vacEl=src.querySelector("td.vaccell");
@@ -1516,6 +1521,14 @@ async function initApp(){
   renderVacationInputs();
   renderRufInputs();
   loadMonth();
+  scrollToToday();
+}
+
+function scrollToToday(){
+  if(wideMQ.matches||document.body.classList.contains("editing")) return;
+  const row=document.querySelector("#viewBody tr.today");
+  if(!row) return;
+  requestAnimationFrame(()=>row.scrollIntoView({block:"center"}));
 }
 
 initApp();
